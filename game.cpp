@@ -76,7 +76,7 @@ void loop() {
 }
 
 void game1() {
-  for (int i = 0; i < 1000; i++) {
+  while (gamemode == Buz) {
     switch (gamestate) {
       case IN_PROGRESS:
         if (!digitalRead(endpin)) {
@@ -87,10 +87,10 @@ void game1() {
           Serial.println("Game over Congratulations!");
           delay(1000);
           gamemode = non;
+          gamestate = FAILED;
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("Start");
-          break;
         } else if (!digitalRead(failpin)) {
           gamestate = FAILED;
           lcd.clear();
@@ -102,7 +102,6 @@ void game1() {
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("Start");
-          break;
         }
         break;
 
@@ -121,7 +120,7 @@ void game1() {
 }
 
 void game2() {
-  for (int i = 0; i < 1000; i++) {
+  while (gamemode == Simon) {
     switch (stage) {
       case 0:
         lcd.setCursor(0, 0); 
@@ -216,6 +215,11 @@ void game2() {
         level = 1;
         stage = 0;
         lost = false;
+        gamemode = non;  // Reset game mode to allow new game selection
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Start");
+        return; // Exit game2 function to allow game mode selection
         break;
 
       case 6:
@@ -241,3 +245,4 @@ void game2() {
     }
   }
 }
+
