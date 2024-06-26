@@ -3,6 +3,8 @@
 
 LiquidCrystal_I2C lcd(0x27, 16, 4);  // Address 0x27, 16 columns, 4 rows
 
+
+//Buzwire Game
 const int startpin = 32;
 const int failpin = 4;
 const int endpin = 33;
@@ -10,15 +12,18 @@ const int endpin = 33;
 enum GameState { FAILED, IN_PROGRESS, SUCCESS };
 GameState gamestate = FAILED;
 
+//Choose Game
 enum GameMode { Buz, Simon, non };
 GameMode gamemode = non;
 
+//Simon Says Game
 int buttons[4] = {12, 13, 14, 15};  // Update with suitable GPIO pins for ESP32
 int leds[4]    = {25, 26, 18, 19};  // Update with suitable GPIO pins for ESP32
 
 boolean button[4] = {0, 0, 0, 0};
 
 #define levelsInGame 50
+#define buzzer  23// Update with a suitable GPIO pin for ESP32
 
 int bt_simonSaid[100];
 int led_simonSaid[100];
@@ -26,10 +31,13 @@ int led_simonSaid[100];
 boolean lost = false;
 int game_play, level, stage;
 
+
+
 void setup() {
   pinMode(startpin, INPUT_PULLUP);
   pinMode(failpin, INPUT_PULLUP);
   pinMode(endpin, INPUT_PULLUP);
+  pinMode(buzzer, OUTPUT);
 
   // Initialize LCD
   lcd.init();
@@ -43,6 +51,7 @@ void setup() {
     pinMode(buttons[i], INPUT_PULLUP);
     pinMode(leds[i], OUTPUT);
   }
+  
   randomSeed(analogRead(0));  // Seed the random number generator
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -131,6 +140,7 @@ void game2() {
         while (button[0] == HIGH) {
           button[0] = digitalRead(buttons[0]);
         }
+        playBuzzer(25);
         level = 1;
         stage = 1;
         game_play = 1;
@@ -148,7 +158,7 @@ void game2() {
         led_simonSaid[level] = leds[random(0, 4)];
         for (int i = 1; i <= level; i++) {
           digitalWrite(led_simonSaid[i], HIGH);
-          delay(400);
+          playBuzzer(led_simonSaid[i] -15);
           digitalWrite(led_simonSaid[i], LOW);
           delay(400);
         }
@@ -168,6 +178,7 @@ void game2() {
           if (button[i] == LOW) {
             bt_simonSaid[game_play] = leds[i];
             digitalWrite(leds[i], HIGH);
+            playBuzzer(i + 1);
             while (button[i] == LOW) {
               button[i] = digitalRead(buttons[i]);
             }
@@ -201,6 +212,7 @@ void game2() {
       case 5:
         lcd.setCursor(0, 0);
         lcd.print("!! You Lost !!");
+        tone(buzzer, 350);
         for (int i = 0; i < 4; i++) {
           digitalWrite(leds[i], HIGH);
         }
@@ -208,6 +220,7 @@ void game2() {
         lcd.setCursor(0, 1);
         lcd.print("   Score  ");
         lcd.print(level - 1);
+        noTone(buzzer);
         delay(3000);
         for (int i = 0; i < 4; i++) {
           digitalWrite(leds[i], LOW);
@@ -244,5 +257,11 @@ void game2() {
         break;
     }
   }
+}
+
+void playBuzzer(int x) {
+  tone(buzzer, 650 + (x * 100));
+  delay(300);
+  noTone(buzzer);
 }
 
