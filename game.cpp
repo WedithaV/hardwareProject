@@ -1,5 +1,6 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <ld2410.h>
 
 LiquidCrystal_I2C lcd(0x27, 16, 4);  // Address 0x27, 16 columns, 4 rows
 
@@ -31,7 +32,25 @@ int led_simonSaid[100];
 boolean lost = false;
 int game_play, level, stage;
 
+//-------------------------------------------------------------------
+//LD2410
+ld2410 radar;
+uint32_t lastReading = 0;
+bool radarConnected = false;
 
+#define MONITOR_SERIAL Serial
+#define RADAR_SERIAL Serial1
+#define RADAR_RX_PIN 16
+#define RADAR_TX_PIN 17
+#define LED_PIN 2  // Define the pin for the LED
+
+unsigned long presenceStartTime = 0;
+unsigned long gameStartTime = 0;
+bool gameActive = false;
+const unsigned long presenceDuration = 15000; // 15 seconds in milliseconds
+const unsigned long gameDuration = 20000; // 20 seconds in milliseconds
+
+//------------------------------------------------------------------
 
 void setup() {
   pinMode(startpin, INPUT_PULLUP);
@@ -53,34 +72,105 @@ void setup() {
   }
   
   randomSeed(analogRead(0));  // Seed the random number generator
+
+  //----------------------------------------------------------------------
+  //LD2410
+   // Initialize radar
+  MONITOR_SERIAL.begin(115200);
+  RADAR_SERIAL.begin(256000, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN);
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(buzzer, OUTPUT); // Initialize the buzzer pin as output
+  digitalWrite(LED_PIN, LOW); // Turn off the LED initially
+  digitalWrite(buzzer, LOW); // Turn off the buzzer initially
+  delay(500);
+
+  MONITOR_SERIAL.print(F("Initializing LD2410 radar sensor: "));
+  if (radar.begin(RADAR_SERIAL)) {
+    MONITOR_SERIAL.println(F("OK"));
+    radarConnected = true;
+  } else {
+    MONITOR_SERIAL.println(F("not connected"));
+  }
+ 
+//----------------------------------------------------------------------
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Start");
 }
 
 void loop() {
-  switch (gamemode) {
-    case non:
-      if (!digitalRead(startpin)) {
-        gamemode = Buz;
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Buz_Game");
-        delay(1000);
-      } else if (!digitalRead(endpin)) {
-        gamemode = Simon;
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Simon_Game");
-        delay(1000);
+   // Read data from the radar
+  radar.read();
+
+  if (radarConnected) {
+    bool humanDetected = false;
+
+    if (radar.presenceDetected()) {
+      if ((radar.stationaryTargetDetected() && radar.stationaryTargetDistance() <= 100) || 
+          (radar.movingTargetDetected() && radar.movingTargetDistance() <= 100)) {
+        humanDetected = true;
       }
-      break;
-    case Buz:
-      game1();
-      break;
-    case Simon:
-      game2();
-      break;
+    }
+
+    if (humanDetected) {
+      digitalWrite(LED_PIN, HIGH); // Turn on the LED
+
+      if (presenceStartTime == 0) {
+        presenceStartTime = millis();
+      } else if (millis() - presenceStartTime >= presenceDuration) { // Detected for 15 seconds
+        gameActive = true;
+        presenceStartTime = 0; // Reset the presence start time
+        gameStartTime = millis(); // Set the game start time
+
+        // Update the display to indicate game selection is possible
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Choose a Game:");
+        lcd.setCursor(0, 1);
+        lcd.print("1: Buz 2: Simon");
+        
+        // Sound the buzzer to indicate game selection is possible
+        playBuzzer(4); // Buzzer for 1 second
+      }
+    } else {
+      digitalWrite(LED_PIN, LOW); // Turn off the LED
+      presenceStartTime = 0;
+      gameActive = false;
+    }
+  }
+
+  if (gameActive) {
+    if (millis() - gameStartTime >= gameDuration) {
+      gameActive = false;
+      gamemode = non;
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Start");
+    } else {
+      switch (gamemode) {
+        case non:
+          if (!digitalRead(startpin)) {
+            gamemode = Buz;
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("Buz_Game");
+            delay(1000);
+          } else if (!digitalRead(endpin)) {
+            gamemode = Simon;
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("Simon_Game");
+            delay(1000);
+          }
+          break;
+        case Buz:
+          game1();
+          break;
+        case Simon:
+          game2();
+          break;
+      }
+    }
   }
 }
 
