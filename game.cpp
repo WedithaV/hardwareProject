@@ -92,6 +92,7 @@ void game1() {
           gamestate = SUCCESS;
           lcd.clear();
           lcd.setCursor(0, 0);
+          playBuzzer(4);
           lcd.print("Congratulations!");
           Serial.println("Game over Congratulations!");
           delay(1000);
@@ -104,9 +105,11 @@ void game1() {
           gamestate = FAILED;
           lcd.clear();
           lcd.setCursor(0, 0);
-          lcd.print("Failed!");
           Serial.println("Game over Failed!");
+          lcd.print("Failed!");
+          tone(buzzer, 350);
           delay(1000);
+          noTone(buzzer);
           gamemode = non;
           lcd.clear();
           lcd.setCursor(0, 0);
@@ -120,6 +123,9 @@ void game1() {
           gamestate = IN_PROGRESS;
           lcd.clear();
           lcd.setCursor(0, 0);
+          tone(buzzer, 150);
+          delay(300);
+          noTone(buzzer);
           lcd.print("New game start!");
           Serial.println("New game started.");
         }
