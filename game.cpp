@@ -1,8 +1,11 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <ld2410.h>
+#include <WebSocketsServer.h>
 
 LiquidCrystal_I2C lcd(0x27, 16, 4);  // Address 0x27, 16 columns, 4 rows
+
+WebSocketsServer webSocket = WebSocketsServer(81);
 
 // Buzwire Game
 const int startpin = 32;
@@ -53,6 +56,8 @@ const unsigned long detectionGracePeriod = 2000; // 2 seconds in milliseconds
 
 int numDetections = 0; // Counter for human presence detections
 
+int sessions = 0; //count of sesions
+
 //------------------------------------------------------------------
 
 void setup() {
@@ -73,6 +78,9 @@ void setup() {
     pinMode(leds[i], OUTPUT);
   }
   
+  webSocket.begin();
+  webSocket.onEvent(webSocketEvent);
+
   randomSeed(analogRead(0));  // Seed the random number generator
 
   //----------------------------------------------------------------------
@@ -99,6 +107,8 @@ void setup() {
 }
 
 void loop() {
+  webSocket.loop();
+
   if(numDetections <= 3){
   radar.read();
 
@@ -394,4 +404,12 @@ void playBuzzer(int x) {
   tone(buzzer, 650 + (x * 100));
   delay(300);
   noTone(buzzer);
+}
+
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+  if (type == WStype_TEXT) {
+    sessions = atoi((char*)payload);
+    Serial.print("Received integer: ");
+    Serial.println(sessions);
+  }
 }
