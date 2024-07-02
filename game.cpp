@@ -2,10 +2,35 @@
 #include <LiquidCrystal_I2C.h>
 #include <ld2410.h>
 #include <WebSocketsServer.h>
+#include <WiFi.h>
+#include <Firebase_ESP_Client.h>
+#include "addons/TokenHelper.h"
+#include "addons/RTDBHelper.h"
+
 
 LiquidCrystal_I2C lcd(0x27, 16, 4);  // Address 0x27, 16 columns, 4 rows
 
+
+//Firebase
+// Replace these with your Firebase project credentials
+#define API_KEY "AIzaSyAxgTKliDO4MNop_gZEH_led3kpI2MlfBs"
+#define FIREBASE_PROJECT_ID "first-year-hardware-project"
+#define USER_EMAIL "your_email@example.com"
+#define USER_PASSWORD "your_password"
+#define DATABASE_URL "https://first-year-hardware-project.firebaseio.com" // Add your Firebase database URL
+
+// Initialize Firebase data object
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
+
+
+
+//WebSockets
 WebSocketsServer webSocket = WebSocketsServer(81);
+const char* ssid = "Dialog 4G 370";
+const char* password = "Fc5814ED";
+
 
 // Buzwire Game
 const int startpin = 32;
@@ -44,19 +69,18 @@ bool radarConnected = false;
 #define RADAR_SERIAL Serial1
 #define RADAR_RX_PIN 16
 #define RADAR_TX_PIN 17
-#define LED_PIN 2  // Define the pin for the LED
+#define LED_PIN 27  // Define the pin for the LED
 
 unsigned long presenceStartTime = 0;
 unsigned long gameStartTime = 0;
 bool gameActive = false;
-const unsigned long presenceDuration = 5000; // 15 seconds in milliseconds
-const unsigned long gameDuration = 5000; // 20 seconds in milliseconds
+const unsigned long presenceDuration = 2000; // 5 seconds in milliseconds
+const unsigned long gameDuration = 2000; // 20 seconds in milliseconds
 unsigned long lastHumanDetectionTime = 0;
 const unsigned long detectionGracePeriod = 2000; // 2 seconds in milliseconds
+int sessions = 0; //count of sesions (Websockets)
 
 int numDetections = 0; // Counter for human presence detections
-
-int sessions = 0; //count of sesions
 
 //------------------------------------------------------------------
 
@@ -66,11 +90,29 @@ void setup() {
   pinMode(endpin, INPUT_PULLUP);
   pinMode(buzzer, OUTPUT);
 
+   //WiFi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+
+  Serial.println("Connected to WiFi");
+  Serial.print("ESP32 IP Address: ");
+  Serial.println(WiFi.localIP());  // Print the IP address
+
+  webSocket.begin();
+  webSocket.onEvent(webSocketEvent);
+
+  //FireBase
+  firebaseInit();
+
+  //Time
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov"); // Configure time service
+
   // Initialize LCD
   lcd.init();
   lcd.backlight();
-
-  Serial.begin(9600);  // Initialize Serial Monitor
 
   // Initialize button and LED pins
   for (int i = 0; i < 4; i++) {
@@ -78,9 +120,6 @@ void setup() {
     pinMode(leds[i], OUTPUT);
   }
   
-  webSocket.begin();
-  webSocket.onEvent(webSocketEvent);
-
   randomSeed(analogRead(0));  // Seed the random number generator
 
   //----------------------------------------------------------------------
@@ -108,8 +147,8 @@ void setup() {
 
 void loop() {
   webSocket.loop();
-
-  if(numDetections <= 3){
+  if(sessions != 0){
+  if(numDetections <= sessions){
   radar.read();
 
   if (radarConnected) {
@@ -128,15 +167,17 @@ void loop() {
 
       if (presenceStartTime == 0) {
         presenceStartTime = millis();
-      } else if (millis() - presenceStartTime >= presenceDuration) { // Detected for 15 seconds
+      } else if (millis() - presenceStartTime >= presenceDuration) { // Detected for presenceDuration
         gameActive = true;
         presenceStartTime = 0; // Reset the presence start time
         gameStartTime = millis(); // Set the game start time
 
         numDetections++; // Increment detection counter
+        firestoreDataUpdate();
+        
 
         // Stop detecting after three detections
-        if (numDetections > 3) {
+        if (numDetections > sessions) {
           stopSystem();
           return;
         }
@@ -187,6 +228,7 @@ void loop() {
   else{
     stopSystem();
   }
+  }
 }
 
 void stopSystem() {
@@ -196,6 +238,7 @@ void stopSystem() {
   lcd.print("Session is over");
   delay(2000); // Delay before resetting
   lcd.clear();
+  
 }
 
 void stopGame() {
@@ -412,4 +455,71 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
     Serial.print("Received integer: ");
     Serial.println(sessions);
   }
+}
+
+
+
+//FireBase
+void FirestoreTokenStatusCallback(TokenInfo info) {
+  Serial.printf("Token Info: type = %s, status = %s\n", getTokenType(info), getTokenStatus(info));
+}
+
+void firebaseInit() {
+  config.api_key = API_KEY;
+  config.database_url = DATABASE_URL; // Set the database URL
+  auth.user.email = USER_EMAIL;
+  auth.user.password = USER_PASSWORD;
+  config.token_status_callback = FirestoreTokenStatusCallback;
+
+  Firebase.begin(&config, &auth);
+  Firebase.reconnectWiFi(true);
+}
+
+void firestoreDataUpdate() {
+  if (WiFi.status() == WL_CONNECTED && Firebase.ready()) {
+    String collectionPath = "time";
+
+    FirebaseJson content;
+    content.set("fields/date/stringValue", getFormattedDate());
+    content.set("fields/time/stringValue", String(numDetections)); // Convert numDetections to String
+
+    if (Firebase.Firestore.createDocument(&fbdo, FIREBASE_PROJECT_ID, "", collectionPath.c_str(), content.raw())) {
+      Serial.printf("Document created: %s\n\n", fbdo.payload().c_str());
+    } else {
+      Serial.println(fbdo.errorReason());
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+//Get Time & Date 
+String getFormattedDate() {
+  time_t now;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to obtain time");
+    return "";
+  }
+  char buffer[11];
+  strftime(buffer, sizeof(buffer), "%Y-%m-%d", &timeinfo);
+  return String(buffer);
+}
+
+String getFormattedTime() {
+  time_t now;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to obtain time");
+    return "";
+  }
+  char buffer[9];
+  strftime(buffer, sizeof(buffer), "%H:%M:%S", &timeinfo);
+  return String(buffer);
 }
