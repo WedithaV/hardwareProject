@@ -4,8 +4,7 @@
 
 LiquidCrystal_I2C lcd(0x27, 16, 4);  // Address 0x27, 16 columns, 4 rows
 
-
-//Buzwire Game
+// Buzwire Game
 const int startpin = 32;
 const int failpin = 4;
 const int endpin = 33;
@@ -13,18 +12,18 @@ const int endpin = 33;
 enum GameState { FAILED, IN_PROGRESS, SUCCESS };
 GameState gamestate = FAILED;
 
-//Choose Game
+// Choose Game
 enum GameMode { Buz, Simon, non };
 GameMode gamemode = non;
 
-//Simon Says Game
+// Simon Says Game
 int buttons[4] = {12, 13, 14, 15};  // Update with suitable GPIO pins for ESP32
 int leds[4]    = {25, 26, 18, 19};  // Update with suitable GPIO pins for ESP32
 
 boolean button[4] = {0, 0, 0, 0};
 
 #define levelsInGame 50
-#define buzzer  23// Update with a suitable GPIO pin for ESP32
+#define buzzer  23 // Update with a suitable GPIO pin for ESP32
 
 int bt_simonSaid[100];
 int led_simonSaid[100];
@@ -33,7 +32,7 @@ boolean lost = false;
 int game_play, level, stage;
 
 //-------------------------------------------------------------------
-//LD2410
+// LD2410
 ld2410 radar;
 uint32_t lastReading = 0;
 bool radarConnected = false;
@@ -47,8 +46,12 @@ bool radarConnected = false;
 unsigned long presenceStartTime = 0;
 unsigned long gameStartTime = 0;
 bool gameActive = false;
-const unsigned long presenceDuration = 15000; // 15 seconds in milliseconds
-const unsigned long gameDuration = 20000; // 20 seconds in milliseconds
+const unsigned long presenceDuration = 5000; // 15 seconds in milliseconds
+const unsigned long gameDuration = 5000; // 20 seconds in milliseconds
+unsigned long lastHumanDetectionTime = 0;
+const unsigned long detectionGracePeriod = 2000; // 2 seconds in milliseconds
+
+int numDetections = 0; // Counter for human presence detections
 
 //------------------------------------------------------------------
 
@@ -60,11 +63,10 @@ void setup() {
 
   // Initialize LCD
   lcd.init();
-  
-  // Turn on the backlight
   lcd.backlight();
 
   Serial.begin(9600);  // Initialize Serial Monitor
+
   // Initialize button and LED pins
   for (int i = 0; i < 4; i++) {
     pinMode(buttons[i], INPUT_PULLUP);
@@ -74,8 +76,7 @@ void setup() {
   randomSeed(analogRead(0));  // Seed the random number generator
 
   //----------------------------------------------------------------------
-  //LD2410
-   // Initialize radar
+  // LD2410
   MONITOR_SERIAL.begin(115200);
   RADAR_SERIAL.begin(256000, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN);
   pinMode(LED_PIN, OUTPUT);
@@ -91,15 +92,14 @@ void setup() {
   } else {
     MONITOR_SERIAL.println(F("not connected"));
   }
- 
-//----------------------------------------------------------------------
+
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Start");
+  lcd.print("Wait...!");
 }
 
 void loop() {
-   // Read data from the radar
+  if(numDetections <= 3){
   radar.read();
 
   if (radarConnected) {
@@ -109,10 +109,11 @@ void loop() {
       if ((radar.stationaryTargetDetected() && radar.stationaryTargetDistance() <= 100) || 
           (radar.movingTargetDetected() && radar.movingTargetDistance() <= 100)) {
         humanDetected = true;
+        lastHumanDetectionTime = millis();
       }
     }
 
-    if (humanDetected) {
+    if (humanDetected || (millis() - lastHumanDetectionTime <= detectionGracePeriod)) {
       digitalWrite(LED_PIN, HIGH); // Turn on the LED
 
       if (presenceStartTime == 0) {
@@ -121,6 +122,14 @@ void loop() {
         gameActive = true;
         presenceStartTime = 0; // Reset the presence start time
         gameStartTime = millis(); // Set the game start time
+
+        numDetections++; // Increment detection counter
+
+        // Stop detecting after three detections
+        if (numDetections > 3) {
+          stopSystem();
+          return;
+        }
 
         // Update the display to indicate game selection is possible
         lcd.clear();
@@ -131,51 +140,73 @@ void loop() {
         
         // Sound the buzzer to indicate game selection is possible
         playBuzzer(4); // Buzzer for 1 second
-      }
-    } else {
-      digitalWrite(LED_PIN, LOW); // Turn off the LED
-      presenceStartTime = 0;
-      gameActive = false;
-    }
-  }
 
-  if (gameActive) {
-    if (millis() - gameStartTime >= gameDuration) {
-      gameActive = false;
-      gamemode = non;
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Start");
-    } else {
-      switch (gamemode) {
-        case non:
-          if (!digitalRead(startpin)) {
-            gamemode = Buz;
-            lcd.clear();
-            lcd.setCursor(0, 0);
-            lcd.print("Buz_Game");
-            delay(1000);
-          } else if (!digitalRead(endpin)) {
-            gamemode = Simon;
-            lcd.clear();
-            lcd.setCursor(0, 0);
-            lcd.print("Simon_Game");
-            delay(1000);
+        // Give a chance to play games
+        while (gameActive) {
+          if (gamemode == non) {
+            if (!digitalRead(startpin)) {
+              gamemode = Buz;
+              lcd.clear();
+              lcd.setCursor(0, 0);
+              lcd.print("Buz_Game");
+              delay(1000);
+              game1(); // Start Buz game
+            } else if (!digitalRead(endpin)) {
+              gamemode = Simon;
+              lcd.clear();
+              lcd.setCursor(0, 0);
+              lcd.print("Simon_Game");
+              delay(1000);
+              game2(); // Start Simon game
+            }
           }
-          break;
-        case Buz:
-          game1();
-          break;
-        case Simon:
-          game2();
-          break;
+
+          // Check game timeout
+          if (millis() - gameStartTime >= gameDuration) {
+            stopGame();
+          }
+        }
       }
+    } else {
+        digitalWrite(LED_PIN, LOW); // Turn off the LED
+        presenceStartTime = 0;
+        gameActive = false;
     }
   }
+  }
+  else{
+    stopSystem();
+  }
+}
+
+void stopSystem() {
+  gameActive = false;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Session is over");
+  delay(2000); // Delay before resetting
+  lcd.clear();
+}
+
+void stopGame() {
+  gameActive = false;
+  gamemode = non;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Time is OVER!");
+  delay(500); // Wait for 2 seconds before restarting presence check
+   lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Wait...!");
+  presenceStartTime = 0; // Reset presence check after game time is over
 }
 
 void game1() {
   while (gamemode == Buz) {
+    if (millis() - gameStartTime >= gameDuration) {
+      stopGame();
+      return; // Exit the function
+    }
     switch (gamestate) {
       case IN_PROGRESS:
         if (!digitalRead(endpin)) {
@@ -226,6 +257,10 @@ void game1() {
 
 void game2() {
   while (gamemode == Simon) {
+    if (millis() - gameStartTime >= gameDuration) {
+      stopGame();
+      return; // Exit the function
+    }
     switch (stage) {
       case 0:
         lcd.setCursor(0, 0); 
@@ -254,7 +289,7 @@ void game2() {
         led_simonSaid[level] = leds[random(0, 4)];
         for (int i = 1; i <= level; i++) {
           digitalWrite(led_simonSaid[i], HIGH);
-          playBuzzer(led_simonSaid[i] -15);
+          playBuzzer(led_simonSaid[i] - 15);
           digitalWrite(led_simonSaid[i], LOW);
           delay(400);
         }
@@ -360,4 +395,3 @@ void playBuzzer(int x) {
   delay(300);
   noTone(buzzer);
 }
-
