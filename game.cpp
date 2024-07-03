@@ -37,10 +37,10 @@ enum GameState { FAILED, IN_PROGRESS, SUCCESS };
 GameState gamestate = FAILED;
 
 // Choose Game
-enum GameMode { Buz, Simon, non };
+enum GameMode { Buz, Memory, non };
 GameMode gamemode = non;
 
-// Simon Says Game
+// Memory Game
 int buttons[4] = {12, 13, 14, 15};
 int leds[4]    = {25, 26, 18, 19};
 
@@ -49,8 +49,8 @@ boolean button[4] = {0, 0, 0, 0};
 #define levelsInGame 50
 #define buzzer  23
 
-int bt_simonSaid[100];
-int led_simonSaid[100];
+int bt_memoryGame[100];
+int led_memoryGame[100];
 
 boolean lost = false;
 int game_play, level, stage;
@@ -200,12 +200,12 @@ void loop() {
                   delay(1000);
                   game1(); // Start Buz game
                 } else if (!digitalRead(endpin)) {
-                  gamemode = Simon;
+                  gamemode = Memory;
                   lcd.clear();
                   lcd.setCursor(0, 0);
-                  lcd.print("Simon_Game");
+                  lcd.print("Memory_Game");
                   delay(1000);
-                  game2(); // Start Simon game
+                  game2(); // Start Memory game
                 }
               }
 
@@ -306,7 +306,7 @@ void game1() {
 }
 
 void game2() {
-  while (gamemode == Simon) {
+  while (gamemode == Memory) {
     if (millis() - gameStartTime >= gameDuration) {
       stopGame();
       return; // Exit the function
@@ -336,11 +336,11 @@ void game2() {
         lcd.setCursor(0, 1);
         lcd.print("-- Memorize --");
         delay(1500);
-        led_simonSaid[level] = leds[random(0, 4)];
+        led_memoryGame[level] = leds[random(0, 4)];
         for (int i = 1; i <= level; i++) {
-          digitalWrite(led_simonSaid[i], HIGH);
-          playBuzzer(led_simonSaid[i] - 15);
-          digitalWrite(led_simonSaid[i], LOW);
+          digitalWrite(led_memoryGame[i], HIGH);
+          playBuzzer(led_memoryGame[i] - 15);
+          digitalWrite(led_memoryGame[i], LOW);
           delay(400);
         }
         delay(500);
@@ -357,7 +357,7 @@ void game2() {
         for (int i = 0; i < 4; i++) {
           button[i] = digitalRead(buttons[i]);
           if (button[i] == LOW) {
-            bt_simonSaid[game_play] = leds[i];
+            bt_memoryGame[game_play] = leds[i];
             digitalWrite(leds[i], HIGH);
             playBuzzer(i + 1);
             while (button[i] == LOW) {
@@ -381,7 +381,7 @@ void game2() {
         lcd.print("  Verification  ");
         delay(1000);
         for (int i = 1; i <= level; i++) {
-          if (led_simonSaid[i] != bt_simonSaid[i]) {
+          if (led_memoryGame[i] != bt_memoryGame[i]) {
             lost = true;
             break;
           }
