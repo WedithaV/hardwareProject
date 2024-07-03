@@ -7,9 +7,7 @@
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 
-
 LiquidCrystal_I2C lcd(0x27, 16, 4);  // Address 0x27, 16 columns, 4 rows
-
 
 //Firebase
 #define API_KEY "AIzaSyAxgTKliDO4MNop_gZEH_led3kpI2MlfBs"
