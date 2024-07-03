@@ -18,6 +18,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 4);  // Address 0x27, 16 columns, 4 rows
 #define USER_EMAIL "your_email@example.com"
 #define USER_PASSWORD "your_password"
 #define DATABASE_URL "https://first-year-hardware-project.firebaseio.com" // Add your Firebase database URL
+#define RDATABASE_URL "https://first-year-hardware-project-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
 // Initialize Firebase data object
 FirebaseData fbdo;
@@ -75,12 +76,17 @@ unsigned long presenceStartTime = 0;
 unsigned long gameStartTime = 0;
 bool gameActive = false;
 const unsigned long presenceDuration = 2000; // 5 seconds in milliseconds
-const unsigned long gameDuration = 2000; // 20 seconds in milliseconds
+const unsigned long gameDuration = 20000; // 20 seconds in milliseconds
 unsigned long lastHumanDetectionTime = 0;
 const unsigned long detectionGracePeriod = 2000; // 2 seconds in milliseconds
 int sessions = 0; //count of sesions (Websockets)
 
 int numDetections = 0; // Counter for human presence detections
+
+unsigned long startTime = 0; // Variable to store the start time
+unsigned long highScore = ULONG_MAX; // Variable to store the high score time
+bool signupOK = false;
+
 
 //------------------------------------------------------------------
 
@@ -104,7 +110,10 @@ void setup() {
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
 
+  
+
   //FireBase
+  rfirebase();
   firebaseInit();
 
   //Time
@@ -264,6 +273,12 @@ void game1() {
       case IN_PROGRESS:
         if (!digitalRead(endpin)) {
           gamestate = SUCCESS;
+          unsigned long endTime = millis();
+          unsigned long elapsedTime = endTime - startTime;
+          if (elapsedTime < highScore) {
+          highScore = elapsedTime;
+          updateHighScore(highScore); // Update the high score in Firebase
+          }
           lcd.clear();
           lcd.setCursor(0, 0);
           playBuzzer(4);
@@ -295,6 +310,7 @@ void game1() {
       case SUCCESS:
         if (!digitalRead(startpin)) {
           gamestate = IN_PROGRESS;
+          startTime = millis(); // Record the start time
           lcd.clear();
           lcd.setCursor(0, 0);
           tone(buzzer, 150);
@@ -475,6 +491,33 @@ void firebaseInit() {
   Firebase.reconnectWiFi(true);
 }
 
+void rfirebase(){
+  config.host = RDATABASE_URL;
+  config.api_key = API_KEY;
+   /* Sign up */
+  if (Firebase.signUp(&config, &auth, "", "")){
+    Serial.println("ok");
+    signupOK = true;
+  }
+  else{
+    Serial.printf("%s\n", config.signer.signupError.message.c_str());
+  }
+  config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
+  //initialize
+  Firebase.begin(&config, &auth);
+  Firebase.reconnectWiFi(true);
+  // Retrieve the current high score
+  if (Firebase.RTDB.getInt(&fbdo, "highScore/buzzwire")) {
+    if (fbdo.dataType() == "int") {
+      highScore = fbdo.intData();
+      Serial.println("Current high score: " + String(highScore) + " ms");
+    }
+  } else {
+    Serial.print("Failed to get high score: ");
+    Serial.println(fbdo.errorReason());
+  }
+}
+
 void firestoreDataUpdate() {
   if (WiFi.status() == WL_CONNECTED && Firebase.ready()) {
     String collectionPath = "time";
@@ -492,6 +535,15 @@ void firestoreDataUpdate() {
 }
 
 
+void updateHighScore(unsigned long newHighScore) {
+  Firebase.RTDB.setInt(&fbdo, "highScore/buzzwire", newHighScore);
+  if (fbdo.dataType() == "null") {
+    Serial.print("Failed to update high score: ");
+    Serial.println(fbdo.errorReason());
+  } else {
+    Serial.println("Updated high score to: " + String(newHighScore) + " ms");
+  }
+}
 
 
 
