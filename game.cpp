@@ -449,7 +449,7 @@ void playBuzzer(int x) {
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
   if (type == WStype_TEXT) {
     sessions = atoi((char*)payload);
-    Serial.print("Received integer: ");
+    Serial.print("Received sessions: ");
     Serial.println(sessions);
   }
 }
@@ -471,11 +471,11 @@ void firebaseInit() {
 
 void firestoreDataUpdate() {
   if (WiFi.status() == WL_CONNECTED && Firebase.ready()) {
-    String collectionPath = "time";
+    String collectionPath = "sessions";
 
     FirebaseJson content;
     content.set("fields/date/stringValue", getFormattedDate());
-    content.set("fields/time/stringValue", String(numDetections)); // Convert numDetections to String
+    content.set("fields/session/stringValue", String(numDetections)); // Convert numDetections to String
 
     if (Firebase.Firestore.createDocument(&fbdo, FIREBASE_PROJECT_ID, "", collectionPath.c_str(), content.raw())) {
       Serial.printf("Document created: %s\n\n", fbdo.payload().c_str());
