@@ -12,25 +12,21 @@ LiquidCrystal_I2C lcd(0x27, 16, 4);  // Address 0x27, 16 columns, 4 rows
 
 
 //Firebase
-// Replace these with your Firebase project credentials
 #define API_KEY "AIzaSyAxgTKliDO4MNop_gZEH_led3kpI2MlfBs"
 #define FIREBASE_PROJECT_ID "first-year-hardware-project"
 #define USER_EMAIL "your_email@example.com"
 #define USER_PASSWORD "your_password"
-#define DATABASE_URL "https://first-year-hardware-project.firebaseio.com" // Add your Firebase database URL
+#define DATABASE_URL "https://first-year-hardware-project.firebaseio.com"
 
 // Initialize Firebase data object
 FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig config;
 
-
-
 //WebSockets
 WebSocketsServer webSocket = WebSocketsServer(81);
 const char* ssid = "Dialog 4G 370";
 const char* password = "Fc5814ED";
-
 
 // Buzwire Game
 const int startpin = 32;
@@ -45,13 +41,13 @@ enum GameMode { Buz, Simon, non };
 GameMode gamemode = non;
 
 // Simon Says Game
-int buttons[4] = {12, 13, 14, 15};  // Update with suitable GPIO pins for ESP32
-int leds[4]    = {25, 26, 18, 19};  // Update with suitable GPIO pins for ESP32
+int buttons[4] = {12, 13, 14, 15};
+int leds[4]    = {25, 26, 18, 19};
 
 boolean button[4] = {0, 0, 0, 0};
 
 #define levelsInGame 50
-#define buzzer  23 // Update with a suitable GPIO pin for ESP32
+#define buzzer  23
 
 int bt_simonSaid[100];
 int led_simonSaid[100];
@@ -78,19 +74,19 @@ const unsigned long presenceDuration = 2000; // 5 seconds in milliseconds
 const unsigned long gameDuration = 2000; // 20 seconds in milliseconds
 unsigned long lastHumanDetectionTime = 0;
 const unsigned long detectionGracePeriod = 2000; // 2 seconds in milliseconds
+
 int sessions = 0; //count of sesions (Websockets)
 
 int numDetections = 0; // Counter for human presence detections
 
 //------------------------------------------------------------------
-
 void setup() {
   pinMode(startpin, INPUT_PULLUP);
   pinMode(failpin, INPUT_PULLUP);
   pinMode(endpin, INPUT_PULLUP);
   pinMode(buzzer, OUTPUT);
 
-   //WiFi
+  //WiFi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -147,87 +143,88 @@ void setup() {
 
 void loop() {
   webSocket.loop();
+
   if(sessions != 0){
-  if(numDetections <= sessions){
-  radar.read();
+    if(numDetections <= sessions){
+    radar.read();
 
-  if (radarConnected) {
-    bool humanDetected = false;
+      if (radarConnected) {
+        bool humanDetected = false;
 
-    if (radar.presenceDetected()) {
-      if ((radar.stationaryTargetDetected() && radar.stationaryTargetDistance() <= 100) || 
-          (radar.movingTargetDetected() && radar.movingTargetDistance() <= 100)) {
-        humanDetected = true;
-        lastHumanDetectionTime = millis();
-      }
-    }
-
-    if (humanDetected || (millis() - lastHumanDetectionTime <= detectionGracePeriod)) {
-      digitalWrite(LED_PIN, HIGH); // Turn on the LED
-
-      if (presenceStartTime == 0) {
-        presenceStartTime = millis();
-      } else if (millis() - presenceStartTime >= presenceDuration) { // Detected for presenceDuration
-        gameActive = true;
-        presenceStartTime = 0; // Reset the presence start time
-        gameStartTime = millis(); // Set the game start time
-
-        numDetections++; // Increment detection counter
-        firestoreDataUpdate();
-        
-
-        // Stop detecting after three detections
-        if (numDetections > sessions) {
-          stopSystem();
-          return;
+        if (radar.presenceDetected()) {
+          if ((radar.stationaryTargetDetected() && radar.stationaryTargetDistance() <= 100) || 
+              (radar.movingTargetDetected() && radar.movingTargetDistance() <= 100)) {
+            humanDetected = true;
+            lastHumanDetectionTime = millis();
+          }
         }
 
-        // Update the display to indicate game selection is possible
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Choose a Game:");
-        lcd.setCursor(0, 1);
-        lcd.print("1: Buz 2: Simon");
-        
-        // Sound the buzzer to indicate game selection is possible
-        playBuzzer(4); // Buzzer for 1 second
+        if (humanDetected || (millis() - lastHumanDetectionTime <= detectionGracePeriod)) {
+          digitalWrite(LED_PIN, HIGH); // Turn on the LED
 
-        // Give a chance to play games
-        while (gameActive) {
-          if (gamemode == non) {
-            if (!digitalRead(startpin)) {
-              gamemode = Buz;
-              lcd.clear();
-              lcd.setCursor(0, 0);
-              lcd.print("Buz_Game");
-              delay(1000);
-              game1(); // Start Buz game
-            } else if (!digitalRead(endpin)) {
-              gamemode = Simon;
-              lcd.clear();
-              lcd.setCursor(0, 0);
-              lcd.print("Simon_Game");
-              delay(1000);
-              game2(); // Start Simon game
+          if (presenceStartTime == 0) {
+            presenceStartTime = millis();
+          } else if (millis() - presenceStartTime >= presenceDuration) { // Detected for presenceDuration
+            gameActive = true;
+            presenceStartTime = 0; // Reset the presence start time
+            gameStartTime = millis(); // Set the game start time
+
+            numDetections++; // Increment detection counter
+            firestoreDataUpdate();
+            
+
+            // Stop detecting after three detections
+            if (numDetections > sessions) {
+              stopSystem();
+              return;
+            }
+
+            // Update the display to indicate game selection is possible
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("Choose a Game:");
+            lcd.setCursor(0, 1);
+            lcd.print("1: Buz 2: Simon");
+            
+            // Sound the buzzer to indicate game selection is possible
+            playBuzzer(4); // Buzzer for 1 second
+
+            // Give a chance to play games
+            while (gameActive) {
+              if (gamemode == non) {
+                if (!digitalRead(startpin)) {
+                  gamemode = Buz;
+                  lcd.clear();
+                  lcd.setCursor(0, 0);
+                  lcd.print("Buz_Game");
+                  delay(1000);
+                  game1(); // Start Buz game
+                } else if (!digitalRead(endpin)) {
+                  gamemode = Simon;
+                  lcd.clear();
+                  lcd.setCursor(0, 0);
+                  lcd.print("Simon_Game");
+                  delay(1000);
+                  game2(); // Start Simon game
+                }
+              }
+
+              // Check game timeout
+              if (millis() - gameStartTime >= gameDuration) {
+                stopGame();
+              }
             }
           }
-
-          // Check game timeout
-          if (millis() - gameStartTime >= gameDuration) {
-            stopGame();
-          }
+        } else {
+            digitalWrite(LED_PIN, LOW); // Turn off the LED
+            presenceStartTime = 0;
+            gameActive = false;
         }
       }
-    } else {
-        digitalWrite(LED_PIN, LOW); // Turn off the LED
-        presenceStartTime = 0;
-        gameActive = false;
+    } 
+    else {
+      stopSystem();
     }
-  }
-  }
-  else{
-    stopSystem();
-  }
   }
 }
 
@@ -457,8 +454,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
   }
 }
 
-
-
 //FireBase
 void FirestoreTokenStatusCallback(TokenInfo info) {
   Serial.printf("Token Info: type = %s, status = %s\n", getTokenType(info), getTokenStatus(info));
@@ -466,11 +461,10 @@ void FirestoreTokenStatusCallback(TokenInfo info) {
 
 void firebaseInit() {
   config.api_key = API_KEY;
-  config.database_url = DATABASE_URL; // Set the database URL
+  config.database_url = DATABASE_URL;
   auth.user.email = USER_EMAIL;
   auth.user.password = USER_PASSWORD;
   config.token_status_callback = FirestoreTokenStatusCallback;
-
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
 }
@@ -491,14 +485,6 @@ void firestoreDataUpdate() {
   }
 }
 
-
-
-
-
-
-
-
-
 //Get Time & Date 
 String getFormattedDate() {
   time_t now;
@@ -509,17 +495,5 @@ String getFormattedDate() {
   }
   char buffer[11];
   strftime(buffer, sizeof(buffer), "%Y-%m-%d", &timeinfo);
-  return String(buffer);
-}
-
-String getFormattedTime() {
-  time_t now;
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    Serial.println("Failed to obtain time");
-    return "";
-  }
-  char buffer[9];
-  strftime(buffer, sizeof(buffer), "%H:%M:%S", &timeinfo);
   return String(buffer);
 }
