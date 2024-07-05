@@ -70,8 +70,8 @@ bool radarConnected = false;
 unsigned long presenceStartTime = 0;
 unsigned long gameStartTime = 0;
 bool gameActive = false;
-const unsigned long presenceDuration = 5000; // 5 seconds in milliseconds
-const unsigned long gameDuration = 30000; // 20 seconds in milliseconds
+const unsigned long presenceDuration = 30000; // 5 seconds in milliseconds
+const unsigned long gameDuration = 60000; // 20 seconds in milliseconds
 unsigned long lastHumanDetectionTime = 0;
 const unsigned long detectionGracePeriod = 2000; // 2 seconds in milliseconds
 
@@ -423,15 +423,16 @@ void game2() {
         lcd.setCursor(0, 1);
         lcd.print("   Score  ");
         lcd.print(level - 1);
+        if(level - 1 > memoryHighScore){
+          memoryHighScore = level - 1;
+          updateMemoryHighScore(memoryHighScore);
+        }
         noTone(buzzer);
         delay(3000);
         for (int i = 0; i < 4; i++) {
           digitalWrite(leds[i], LOW);
         }
-        if(level - 1 > memoryHighScore){
-          memoryHighScore = level - 1;
-          updateMemoryHighScore(memoryHighScore);
-        }
+        
         level = 1;
         stage = 0;
         lost = false;
