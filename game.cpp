@@ -70,7 +70,7 @@ bool radarConnected = false;
 unsigned long presenceStartTime = 0;
 unsigned long gameStartTime = 0;
 bool gameActive = false;
-const unsigned long presenceDuration = 20000; // 5 seconds in milliseconds
+const unsigned long presenceDuration = 10000; // 5 seconds in milliseconds
 const unsigned long gameDuration =5000; // 20 seconds in milliseconds
 unsigned long lastHumanDetectionTime = 0;
 const unsigned long detectionGracePeriod = 2000; // 2 seconds in milliseconds
@@ -80,6 +80,9 @@ int numDetections = 0; // Counter for human presence detections
 int numExecutedSessions = 0;
 unsigned long memoryHighScore = ULONG_MAX;
 int i = 1;
+
+bool buttonPress1 = false;
+bool buttonPress2 = false;
 
 
 //------------------------------------------------------------------
@@ -140,13 +143,24 @@ void setup() {
   // Initialize LCD
   lcd.init();
   lcd.backlight();
+  while(sessions == 0){
+      webSocket.loop();
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Wait For Signal");
+      delay(1000);
+  }
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Wait For Signal");
+  lcd.print("Press Blue !");
+
+  while (digitalRead(15) == HIGH) {
+    // Wait for button press
+  }
 }
 
 void loop() {
-  webSocket.loop();
+  
 
   if(sessions != 0){
   
@@ -173,6 +187,7 @@ void loop() {
             
           } else if (millis() - presenceStartTime >= presenceDuration) { // Detected for presenceDuration
             digitalWrite(LED_PIN, LOW);
+            buttonPress2 = false;
             gameActive = true;
             presenceStartTime = 0; // Reset the presence start time
             gameStartTime = millis(); // Set the game start time
@@ -259,6 +274,14 @@ void stopGame() {
   delay(500); // Wait for 2 seconds before restarting presence check
   lcd.clear();
   lcd.setCursor(0, 0);
+  lcd.print("Press Blue !");
+
+  while (digitalRead(15) == HIGH) {
+    // Wait for button press
+  }
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
   lcd.print("Detecting...");
   if(level - 1 > memoryHighScore){
       memoryHighScore = level - 1;
@@ -268,6 +291,7 @@ void stopGame() {
   stage = 0;
   lost = false;
   presenceStartTime = 0; // Reset presence check after game time is over
+
 }
 
 void game1() {
