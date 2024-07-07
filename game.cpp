@@ -85,6 +85,7 @@ bool buttonPress1 = false;
 bool buttonPress2 = false;
 
 
+
 //------------------------------------------------------------------
 void setup() {
   //Buzzer
@@ -143,20 +144,17 @@ void setup() {
   // Initialize LCD
   lcd.init();
   lcd.backlight();
+
+  displayText("Wait for signal");
   while(sessions == 0){
       webSocket.loop();
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Wait For Signal");
-      delay(1000);
   }
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Press Blue !");
 
+  displayText("Press Blue !");
   while (digitalRead(15) == HIGH) {
     // Wait for button press
   }
+  displayText("Detecting...");
 }
 
 void loop() {
@@ -626,3 +624,9 @@ String getFormattedTime() {
   return String(buffer);
 }
 
+//Basic LCD display
+void displayText(const char* text) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(text);
+}
