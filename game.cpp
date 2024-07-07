@@ -70,8 +70,8 @@ bool radarConnected = false;
 unsigned long presenceStartTime = 0;
 unsigned long gameStartTime = 0;
 bool gameActive = false;
-const unsigned long presenceDuration = 10000; // 5 seconds in milliseconds
-const unsigned long gameDuration =5000; // 20 seconds in milliseconds
+const unsigned long presenceDuration = 30000; // 5 seconds in milliseconds
+const unsigned long gameDuration =60000; // 20 seconds in milliseconds
 unsigned long lastHumanDetectionTime = 0;
 const unsigned long detectionGracePeriod = 2000; // 2 seconds in milliseconds
 
@@ -81,8 +81,7 @@ int numExecutedSessions = 0;
 unsigned long memoryHighScore = ULONG_MAX;
 int i = 1;
 
-bool buttonPress1 = false;
-bool buttonPress2 = false;
+
 
 
 
@@ -147,7 +146,7 @@ void setup() {
 
   displayText("Wait for signal");
   while(sessions == 0){
-      webSocket.loop();
+    webSocket.loop();
   }
 
   displayText("Press Blue !");
@@ -161,31 +160,37 @@ void loop() {
   
 
   if(sessions != 0){
+  Serial.println("1");
   
     if(numExecutedSessions <= sessions){
       radar.read();
+      Serial.println("2");
       if (radarConnected) {
         bool humanDetected = false;
+        Serial.println("3");
 
         if (radar.presenceDetected()) {
           if ((radar.stationaryTargetDetected() && radar.stationaryTargetDistance() <= 100) || 
               (radar.movingTargetDetected() && radar.movingTargetDistance() <= 100)) {
             humanDetected = true;
             lastHumanDetectionTime = millis();
+            Serial.println("4");
           }
         }
 
         if (humanDetected || (millis() - lastHumanDetectionTime <= detectionGracePeriod)) {
           digitalWrite(LED_PIN, HIGH); // Turn on the LED
+          Serial.println("5");
 
           if (presenceStartTime == 0) {
             presenceStartTime = millis();
             numExecutedSessions++;
+            Serial.println("Start Session");
             
             
           } else if (millis() - presenceStartTime >= presenceDuration) { // Detected for presenceDuration
             digitalWrite(LED_PIN, LOW);
-            buttonPress2 = false;
+            Serial.println("Start Gaming");
             gameActive = true;
             presenceStartTime = 0; // Reset the presence start time
             gameStartTime = millis(); // Set the game start time
@@ -221,19 +226,28 @@ void loop() {
                   game2(); // Start Memory game
                 }
               }
-
-              // Check game timeout
-              if (millis() - gameStartTime >= gameDuration) {
-                stopGame();
-              }
             }
           }
         } else {
+            Serial.println("Not detecting");
             digitalWrite(LED_PIN, LOW); // Turn off the LED
             presenceStartTime = 0;
             gameActive = false;
             if(numExecutedSessions == sessions){
               stopSystem();
+            }
+            else{
+              displayText("Not Detecting..");
+              lcd.setCursor(0, 1);
+              lcd.print("Press Blue Btton");
+              lcd.setCursor(0, 2);
+              lcd.print("To Start Session");
+              while(digitalRead(15) == HIGH){
+                Serial.println("Not Pressed");
+              }
+              Serial.println("Pressed");
+              displayText("Detecting...");
+              lastHumanDetectionTime = millis();
             }
         }
       }
@@ -254,22 +268,21 @@ void stopSystem() {
   lcd.setCursor(0, 0);
   lcd.print("Session is over");
   delay(2000); // Delay before resetting
-  lcd.clear();
   digitalWrite(LED_PIN, LOW);
+  sessions = 0;
   
 }
 
 void stopGame() {
   if(numExecutedSessions >= sessions){
     stopSystem();
-    return;
   }
   gameActive = false;
   gamemode = non;
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Time is OVER!");
-  delay(500); // Wait for 2 seconds before restarting presence check
+  delay(1000); // Wait for 2 seconds before restarting presence check
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Press Blue !");
