@@ -37,8 +37,8 @@ bool signupOK = false;
 
 //WebSockets
 WebSocketsServer webSocket = WebSocketsServer(81);
-const char* ssid = "SLT_FIBER";
-const char* password = "what'supmf2222";
+const char* ssid = "Dialog 4G 370";
+const char* password = "Fc5814ED";
 
 // Buzwire Game
 const int startpin = 32;
@@ -81,6 +81,9 @@ int numExecutedSessions = 0;
 unsigned long memoryHighScore = ULONG_MAX;
 int i = 1;
 
+bool changeState = false;
+unsigned long lastDisplayUpdateTime = 0; // To track the last time the display was updated
+const unsigned long displayUpdateInterval = 1000;
 
 
 
@@ -186,9 +189,10 @@ void loop() {
             presenceStartTime = millis();
             numExecutedSessions++;
             Serial.println("Start Session");
+            changeState = true;
             
             
-          } else if (millis() - presenceStartTime >= presenceDuration) { // Detected for presenceDuration
+          } else if (millis() - presenceStartTime >= presenceDuration) { 
             digitalWrite(LED_PIN, LOW);
             Serial.println("Start Gaming");
             gameActive = true;
@@ -209,26 +213,42 @@ void loop() {
 
             // Give a chance to play games
             while (gameActive) {
+              Serial.println("Game Active");
               if (gamemode == non) {
-                if (!digitalRead(startpin)) {
+                if (!digitalRead(12)) {
+                  Serial.println("Selected BuzzGame");
                   gamemode = Buz;
                   lcd.clear();
                   lcd.setCursor(0, 0);
                   lcd.print("Buz_Game");
                   delay(1000);
                   game1(); // Start Buz game
-                } else if (!digitalRead(endpin)) {
+                } else if (!digitalRead(13)) {
+                  Serial.println("Selected Memory");
                   gamemode = Memory;
                   lcd.clear();
                   lcd.setCursor(0, 0);
                   lcd.print("Memory_Game");
                   delay(1000);
                   game2(); // Start Memory game
+                } else if(!digitalRead(14)){
+                  Serial.println("Selected Dancing Pad");
+                  webSocket.sendTXT(0, "0"); // Send response "0" to React app
+                  break;
+
                 }
               }
+              if(millis() - gameStartTime >= gameDuration && changeState){
+                Serial.println("Stop game by checker1");
+                stopGame();
+              }
             }
+          }else{
+            Serial.println("timer");
+            timer();
           }
         } else {
+            Serial.println("Not detecting");
             Serial.println("Not detecting");
             digitalWrite(LED_PIN, LOW); // Turn off the LED
             presenceStartTime = 0;
@@ -253,12 +273,14 @@ void loop() {
       }
     } 
     else {
+      Serial.println("Stop system1");
       stopSystem();
     }
   }
 }
 
 void stopSystem() {
+  Serial.println("Stop system by function");
   if(i == 1){
     firestoreDataUpdate();
     i++;
@@ -270,22 +292,30 @@ void stopSystem() {
   delay(2000); // Delay before resetting
   digitalWrite(LED_PIN, LOW);
   sessions = 0;
+  return;
   
 }
 
 void stopGame() {
-  if(numExecutedSessions >= sessions){
-    stopSystem();
-  }
+  
   gameActive = false;
   gamemode = non;
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Time is OVER!");
   delay(1000); // Wait for 2 seconds before restarting presence check
+  if(numExecutedSessions >= sessions){
+    stopSystem();
+    Serial.println("Stop system2");
+    return;
+  }
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Press Blue !");
+  if(level - 1 > memoryHighScore){
+    memoryHighScore = level - 1;
+    updateMemoryHighScore(memoryHighScore);
+  }
 
   while (digitalRead(15) == HIGH) {
     // Wait for button press
@@ -294,14 +324,11 @@ void stopGame() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Detecting...");
-  if(level - 1 > memoryHighScore){
-      memoryHighScore = level - 1;
-      updateMemoryHighScore(memoryHighScore);
-    }
   level = 1;
   stage = 0;
   lost = false;
-  presenceStartTime = 0; // Reset presence check after game time is over
+  presenceStartTime = 0;
+  changeState = false;
 
 }
 
@@ -452,6 +479,7 @@ void game2() {
         break;
 
       case 5:
+        Serial.println("lost Memory");
         lcd.setCursor(0, 0);
         lcd.print("!! You Lost !!");
         tone(buzzer, 350);
@@ -466,8 +494,10 @@ void game2() {
           memoryHighScore = level - 1;
           updateMemoryHighScore(memoryHighScore);
         }
+        Serial.println("play buzzer");
         noTone(buzzer);
-        delay(3000);
+        delay(2000);
+        Serial.println("Stop buzzer");
         for (int i = 0; i < 4; i++) {
           digitalWrite(leds[i], LOW);
         }
@@ -510,6 +540,7 @@ void playBuzzer(int x) {
   tone(buzzer, 650 + (x * 100));
   delay(300);
   noTone(buzzer);
+  return;
 }
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
@@ -643,3 +674,33 @@ void displayText(const char* text) {
   lcd.setCursor(0, 0);
   lcd.print(text);
 }
+
+
+//Timer
+void timer(){
+  if (millis() - lastDisplayUpdateTime >= displayUpdateInterval){
+    unsigned long remainingTime = presenceDuration - (millis() - presenceStartTime);
+    unsigned long seconds = (remainingTime / 1000) % 60;
+    unsigned long minutes = (remainingTime / 60000) % 60;
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Time Left:");
+    lcd.setCursor(0, 1);
+    lcd.print(minutes);
+    lcd.print(":");
+    if (seconds < 10) {
+      lcd.print("0");
+    }
+    lcd.print(seconds);
+
+    lastDisplayUpdateTime = millis();
+  }
+}
+
+
+
+
+
+ 
+            
