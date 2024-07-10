@@ -136,7 +136,7 @@ void setup() {
 
   //Debug Red led in memory game
   pinMode(25, OUTPUT);
-  
+
   //Websockets
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
@@ -499,7 +499,7 @@ void game2() {
         lcd.setCursor(0, 1);
         lcd.print("   Score  ");
         lcd.print(level - 1);
-        if(level - 1 > memoryHighScore){
+        if(level  > memoryHighScore){
           memoryHighScore = level - 1;
           updateMemoryHighScore(memoryHighScore);
         }
