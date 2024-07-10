@@ -134,6 +134,9 @@ void setup() {
   Serial.print("ESP32 IP Address: ");
   Serial.println(WiFi.localIP());  // Print the IP address
 
+  //Debug Red led in memory game
+  pinMode(25, OUTPUT);
+  
   //Websockets
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
