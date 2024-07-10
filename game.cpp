@@ -50,7 +50,7 @@ unsigned long startTime = 0; // Variable to store the start time
 unsigned long highScore = ULONG_MAX; // Variable to store the high score time
 
 // Choose Game
-enum GameMode { Buz, Memory, non };
+enum GameMode { Buz, Memory,dance, non };
 GameMode gamemode = non;
 
 // Memory Game
@@ -84,6 +84,9 @@ int i = 1;
 bool changeState = false;
 unsigned long lastDisplayUpdateTime = 0; // To track the last time the display was updated
 const unsigned long displayUpdateInterval = 1000;
+int gameRemainingTime = 0;
+
+
 
 
 
@@ -233,9 +236,9 @@ void loop() {
                   game2(); // Start Memory game
                 } else if(!digitalRead(14)){
                   Serial.println("Selected Dancing Pad");
-                  webSocket.sendTXT(0, "0"); // Send response "0" to React app
-                  break;
-
+                  dancingPad();
+                  gamemode = dance;
+                  displayText("Dancing Pad");
                 }
               }
               if(millis() - gameStartTime >= gameDuration && changeState){
@@ -304,18 +307,21 @@ void stopGame() {
   lcd.setCursor(0, 0);
   lcd.print("Time is OVER!");
   delay(1000); // Wait for 2 seconds before restarting presence check
+  Serial.println("Time is over");;
   if(numExecutedSessions >= sessions){
     stopSystem();
     Serial.println("Stop system2");
     return;
+    Serial.println("Stop System in stopgame function");
   }
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Press Blue !");
-  if(level - 1 > memoryHighScore){
+  if(level > memoryHighScore){
     memoryHighScore = level - 1;
     updateMemoryHighScore(memoryHighScore);
   }
+  Serial.println("exit");
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Press Blue !"); 
 
   while (digitalRead(15) == HIGH) {
     // Wait for button press
@@ -698,6 +704,21 @@ void timer(){
   }
 }
 
+
+void dancingPad(){
+  gameRemainingTime = millis() - gameStartTime;
+  gameRemainingTime = gameDuration - gameRemainingTime;
+  String gameRemainingTimeStr = String(gameRemainingTime);
+  // Send the String via webSocket
+  webSocket.sendTXT(0, gameRemainingTimeStr); // Send response "0" to React app
+  if (millis() - gameStartTime >= gameDuration) {
+      stopGame();
+      return; // Exit the function
+    }
+ 
+  return;
+  
+}
 
 
 
