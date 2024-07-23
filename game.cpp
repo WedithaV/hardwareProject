@@ -73,7 +73,7 @@ bool gameActive = false;
 const unsigned long presenceDuration = 30000; // 5 seconds in milliseconds
 const unsigned long gameDuration =60000; // 20 seconds in milliseconds
 unsigned long lastHumanDetectionTime = 0;
-const unsigned long detectionGracePeriod = 2000; // 2 seconds in milliseconds
+const unsigned long detectionGracePeriod = 4000; // 4 seconds in milliseconds
 
 int sessions = 0; //count of sesions (Websockets)
 int numDetections = 0; // Counter for human presence detections
