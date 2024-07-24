@@ -9,7 +9,7 @@ int leds[4]    = {25, 26, 18, 19}; // Update with suitable GPIO pins for ESP32
 
 boolean button[4] = {0, 0, 0, 0};
 
-#define buzzer  4// Update with a suitable GPIO pin for ESP32
+#define buzzer  23// Update with a suitable GPIO pin for ESP32
 
 #define levelsInGame 50
 

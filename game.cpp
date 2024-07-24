@@ -26,6 +26,9 @@
 #define levelsInGame 50
 #define buzzer  23
 
+//WiFi LED
+#define WiFi_LED 5
+
 
 LiquidCrystal_I2C lcd(0x27, 16, 4);  // Address 0x27, 16 columns, 4 rows
 
@@ -100,6 +103,8 @@ void setup() {
   pinMode(startpin, INPUT_PULLUP);
   pinMode(failpin, INPUT_PULLUP);
   pinMode(endpin, INPUT_PULLUP);
+
+  pinMode(WiFi_LED,OUTPUT);
   
   //Memory Game  (Initialize button and LED pins)
   for (int i = 0; i < 4; i++) {
@@ -111,7 +116,6 @@ void setup() {
   MONITOR_SERIAL.begin(115200);
   RADAR_SERIAL.begin(256000, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN);
   pinMode(LED_PIN, OUTPUT);
-  pinMode(buzzer, OUTPUT); // Initialize the buzzer pin as output
   digitalWrite(LED_PIN, LOW); // Turn off the LED initially
   digitalWrite(buzzer, LOW); // Turn off the buzzer initially
   delay(500);
@@ -124,12 +128,27 @@ void setup() {
     MONITOR_SERIAL.println(F("not connected"));
   }
 
+  // Initialize LCD
+  lcd.init();
+  lcd.backlight();
+
   //WiFi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi...");
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print(" Not  Connected ");
+    lcd.setCursor(0,1);
+    lcd.print("     To WiFi");
   }
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print(" WiFi Connected ");
+
+  digitalWrite(WiFi_LED, HIGH);
+
   Serial.println("Connected to WiFi");
   Serial.print("ESP32 IP Address: ");
   Serial.println(WiFi.localIP());  // Print the IP address
@@ -149,15 +168,12 @@ void setup() {
   configTime(0, 0, "pool.ntp.org", "time.nist.gov"); // Configure time service
   randomSeed(analogRead(0));  // Seed the random number generator
 
-  // Initialize LCD
-  lcd.init();
-  lcd.backlight();
-
   displayText("Wait for signal");
   while(sessions == 0){
     webSocket.loop();
+    checkWiFi();
   }
-
+  playBuzzer(4); // Buzzer for 1 second
   displayText("Press Blue !");
   while (digitalRead(15) == HIGH) {
     // Wait for button press
@@ -166,8 +182,8 @@ void setup() {
 }
 
 void loop() {
+  checkWiFi();
   
-
   if(sessions != 0){
   Serial.println("1");
   
@@ -219,6 +235,7 @@ void loop() {
 
             // Give a chance to play games
             while (gameActive) {
+              checkWiFi();
               Serial.println("Game Active");
               if (gamemode == non) {
                 if (!digitalRead(12)) {
@@ -263,6 +280,7 @@ void loop() {
               stopSystem();
             }
             else{
+              playBuzzer(4); // Buzzer for 1 second
               displayText("Not Detecting..");
               lcd.setCursor(0, 1);
               lcd.print("Press Blue Btton");
@@ -324,6 +342,7 @@ void stopGame() {
   Serial.println("exit");
   lcd.clear();
   lcd.setCursor(0, 0);
+  playBuzzer(4); // Buzzer for 1 second
   lcd.print("Press Blue !"); 
 
   while (digitalRead(15) == HIGH) {
@@ -343,6 +362,7 @@ void stopGame() {
 
 void game1() {
   while (gamemode == Buz) {
+    checkWiFi();
     if (millis() - gameStartTime >= gameDuration) {
       stopGame();
       return; // Exit the function
@@ -403,6 +423,7 @@ void game1() {
 }
 
 void game2() {
+  checkWiFi();
   while (gamemode == Memory) {
     if (millis() - gameStartTime >= gameDuration) {
       stopGame();
@@ -721,6 +742,15 @@ void dancingPad(){
  
   return;
   
+}
+
+void checkWiFi(){
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi not connected!");
+    digitalWrite(WiFi_LED, LOW); // Turn off the LED if not connected
+  } else {
+    digitalWrite(WiFi_LED, HIGH); // Keep the LED on if connected
+  }
 }
 
 
