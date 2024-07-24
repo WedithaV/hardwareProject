@@ -179,8 +179,8 @@ void loop() {
         Serial.println("3");
 
         if (radar.presenceDetected()) {
-          if ((radar.stationaryTargetDetected() && radar.stationaryTargetDistance() <= 100) || 
-              (radar.movingTargetDetected() && radar.movingTargetDistance() <= 100)) {
+          if ((radar.stationaryTargetDetected() && radar.stationaryTargetDistance() <= 150) || 
+              (radar.movingTargetDetected() && radar.movingTargetDistance() <= 150)) {
             humanDetected = true;
             lastHumanDetectionTime = millis();
             Serial.println("4");
