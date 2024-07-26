@@ -12,7 +12,7 @@
 #define FIREBASE_PROJECT_ID "first-year-hardware-project"
 #define USER_EMAIL "your_email@example.com"
 #define USER_PASSWORD "your_password"
-#define DATABASE_URL "https://first-year-hardware-project.firebaseio.com"
+#define DATABASE_URL "https://first-year-hardware-project.firebaseio.com" 
 #define RDATABASE_URL "https://first-year-hardware-project-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
 //LD2410
@@ -72,15 +72,15 @@ bool radarConnected = false;
 unsigned long presenceStartTime = 0;
 unsigned long gameStartTime = 0;
 bool gameActive = false;
-const unsigned long presenceDuration = 30000; // 30 seconds in milliseconds
-const unsigned long gameDuration = 60000; // 60 seconds in milliseconds
+const unsigned long presenceDuration = 1*60*1000; 
+const unsigned long gameDuration =3*60*1000; 
 unsigned long lastHumanDetectionTime = 0;
-const unsigned long detectionGracePeriod = 2000; // 2 seconds in milliseconds
+const unsigned long detectionGracePeriod = 2000; 
 
-int sessions = 0; // count of sesions (Websockets)
+int sessions = 0; //count of sesions (Websockets)
 int numDetections = 0; // Counter for human presence detections
 int numExecutedSessions = 0;
-unsigned long memoryHighScore = ULONG_MAX;
+int memoryHighScore;
 int i = 1;
 
 bool changeState = false;
@@ -125,7 +125,7 @@ void setup() {
   lcd.init();
   lcd.backlight();
 
-  // WiFi
+  //WiFi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -146,18 +146,17 @@ void setup() {
   Serial.print("ESP32 IP Address: ");
   Serial.println(WiFi.localIP());  // Print the IP address
 
-  // Debug Red led in memory game
+  //Debug Red led in memory game
   pinMode(25, OUTPUT);
 
-  // Websockets
+  //Websockets
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
 
-  // FireBase
+  //FireBase
   firebaseInit();
-  rfirebase();
 
-  // Time
+  //Time
   configTime(0, 0, "pool.ntp.org", "time.nist.gov"); // Configure time service
   randomSeed(analogRead(0));  // Seed the random number generator
 
@@ -174,7 +173,7 @@ void setup() {
     checkWiFi();
   }
   playBuzzer(4); // Buzzer for 1 second
-  
+
   lcd.clear();
   lcd.setCursor(0, 1);
   lcd.print("Push Blue Button");
@@ -184,45 +183,42 @@ void setup() {
   while (digitalRead(15) == HIGH) {
     // Wait for button press
   }
+
   lastHumanDetectionTime = millis();
+ 
 }
 
 void loop() {
   checkWiFi();
-  
+   
   if(sessions != 0){
-  Serial.println("1");
   
     if(numExecutedSessions <= sessions){
       radar.read();
-      Serial.println("2");
       if (radarConnected) {
         bool humanDetected = false;
-        Serial.println("3");
 
         if (radar.presenceDetected()) {
           if ((radar.stationaryTargetDetected() && radar.stationaryTargetDistance() <= 150) || 
               (radar.movingTargetDetected() && radar.movingTargetDistance() <= 150)) {
             humanDetected = true;
             lastHumanDetectionTime = millis();
-            Serial.println("4");
           }
         }
 
         if (humanDetected || (millis() - lastHumanDetectionTime <= detectionGracePeriod)) {
           digitalWrite(LED_PIN, HIGH); // Turn on the LED
-          Serial.println("5");
 
           if (presenceStartTime == 0) {
             presenceStartTime = millis();
             numExecutedSessions++;
             Serial.println("Start Session");
             changeState = true;
-            
-            
+                        
           } else if (millis() - presenceStartTime >= presenceDuration) { 
             digitalWrite(LED_PIN, LOW);
             Serial.println("Start Gaming");
+            
             gameActive = true;
             presenceStartTime = 0; // Reset the presence start time
             gameStartTime = millis(); // Set the game start time
@@ -246,7 +242,6 @@ void loop() {
             // Give a chance to play games
             while (gameActive) {
               checkWiFi();
-              Serial.println("Game Active");
               if (gamemode == non) {
                 if (!digitalRead(12)) {
                   Serial.println("Selected BuzzGame");
@@ -265,6 +260,7 @@ void loop() {
                   lcd.clear();
                   lcd.setCursor(0, 1);
                   lcd.print("Selected Memory");
+                  
                   delay(1000);
                   game2(); // Start Memory game
                 } else if(!digitalRead(14)){
@@ -277,12 +273,10 @@ void loop() {
                 }
               }
               if(millis() - gameStartTime >= gameDuration && changeState){
-                Serial.println("Stop game by checker1");
                 stopGame();
               }
             }
           }else{
-            Serial.println("timer");
             timer();
           }
         } else {
@@ -305,28 +299,27 @@ void loop() {
               lcd.setCursor(-4, 2);
               lcd.print("To Start Session");
               while(digitalRead(15) == HIGH){
-                Serial.println("Not Pressed");
               }
-              Serial.println("Pressed");
               lastHumanDetectionTime = millis();
             }
         }
       }
     } 
     else {
-      Serial.println("Stop system1");
       stopSystem();
     }
   }
 }
 
 void stopSystem() {
-  Serial.println("Stop system by function");
   if(i == 1){
     firestoreDataUpdate();
     i++;
   }
   gameActive = false;
+  tone(buzzer, 350);
+  delay(1000);
+  noTone(buzzer);
   lcd.clear();
   lcd.setCursor(0, 1);
   lcd.print("Session is over");
@@ -336,6 +329,7 @@ void stopSystem() {
   lcd.print("Push Restart  ");
   lcd.setCursor(-2, 2);
   lcd.print("To start new");
+  
   delay(2000); // Delay before resetting
   digitalWrite(LED_PIN, LOW);
   sessions = 0;
@@ -344,8 +338,6 @@ void stopSystem() {
 }
 
 void stopGame() {
-  Serial.println("22");
-  
   gameActive = false;
   gamemode = non;
   lcd.clear();
@@ -353,24 +345,11 @@ void stopGame() {
   lcd.print("Time is OVER!");
   delay(1000); // Wait for 1 seconds before restarting presence check
   Serial.println("Time is over");
-  Serial.println("33");
-  level = level - 1;
-  Serial.println("34");
-  if(level  > memoryHighScore){
-    Serial.println("35");
-    memoryHighScore = level;
-    Serial.println("36");
-    updateMemoryHighScore(memoryHighScore);
-    Serial.println("37");
-  }
   if(numExecutedSessions >= sessions){
     stopSystem();
-    Serial.println("Stop system2");
     return;
-    Serial.println("Stop System in stopgame function");
   }
   
-  Serial.println("exit");
   lcd.clear();
   lcd.setCursor(0, 0);
   playBuzzer(4); // Buzzer for 1 second
@@ -405,10 +384,6 @@ void game1() {
           gamestate = SUCCESS;
           unsigned long endTime = millis();
           unsigned long elapsedTime = endTime - startTime;
-          if (elapsedTime < highScore) {
-          highScore = elapsedTime;
-          updateBuzzwireHighScore(highScore); // Update the high score in Firebase
-          }
           lcd.clear();
           lcd.setCursor(0, 1);
           playBuzzer(4);
@@ -471,7 +446,6 @@ void game2() {
   checkWiFi();
   while (gamemode == Memory) {
     if (millis() - gameStartTime >= gameDuration) {
-      Serial.println("11");
       stopGame();
       return;
     }
@@ -483,7 +457,7 @@ void game2() {
         lcd.print(" for Start Game ");
         button[0] = digitalRead(buttons[0]);
         while (button[0] == HIGH) {
-          button[0] = digitalRead(buttons[0]); // waiting for press button
+          button[0] = digitalRead(buttons[0]);
         }
         playBuzzer(25);
         level = 1;
@@ -500,7 +474,7 @@ void game2() {
         lcd.setCursor(0, 1);
         lcd.print("--- Memorize ---");
         delay(1500);
-        led_memoryGame[level] = leds[random(0, 4)]; // generate a random number and add it to array
+        led_memoryGame[level] = leds[random(0, 4)];
         for (int i = 1; i <= level; i++) {
           digitalWrite(led_memoryGame[i], HIGH);
           playBuzzer(led_memoryGame[i] - 15);
@@ -534,7 +508,7 @@ void game2() {
             delay(50);
             digitalWrite(leds[i], LOW);
             game_play++;
-            if (game_play - 1 == level) { // waiting to press all buttons in level
+            if (game_play - 1 == level) {
               game_play = 1;
               stage = 4;
               break;
@@ -553,7 +527,7 @@ void game2() {
         lcd.print("  Verification  ");
         delay(1000);
         for (int i = 1; i <= level; i++) {
-          if (led_memoryGame[i] != bt_memoryGame[i]) { // compare led and button pins
+          if (led_memoryGame[i] != bt_memoryGame[i]) {
             lost = true;
             break;
           }
@@ -575,15 +549,8 @@ void game2() {
         lcd.setCursor(0, 1);
         lcd.print("    Score  ");
         lcd.print(level - 1);
-        level = level - 1;
-        if(level  > memoryHighScore){
-          memoryHighScore = level;
-          updateMemoryHighScore(memoryHighScore);
-        }
-        Serial.println("play buzzer");
         noTone(buzzer);
         delay(2000);
-        Serial.println("Stop buzzer");
         for (int i = 0; i < 4; i++) {
           digitalWrite(leds[i], LOW);
         }
@@ -601,8 +568,6 @@ void game2() {
         lcd.print("Yellow : Memory");
         lcd.setCursor(-4, 3);
         lcd.print("Green : Dancing");
-
-
         return; // Exit game2 function to allow game mode selection
         break;
 
@@ -645,7 +610,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
   }
 }
 
-
 //FireBase
 void FirestoreTokenStatusCallback(TokenInfo info) {
   Serial.printf("Token Info: type = %s, status = %s\n", getTokenType(info), getTokenStatus(info));
@@ -659,42 +623,6 @@ void firebaseInit() {
   config.token_status_callback = FirestoreTokenStatusCallback;
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
-}
-
-void rfirebase(){
-  config.host = RDATABASE_URL;
-  config.api_key = API_KEY;
-   /* Sign up */
-  if (Firebase.signUp(&config, &auth, "", "")){
-    Serial.println("ok");
-    signupOK = true;
-  }
-  else{
-    Serial.printf("%s\n", config.signer.signupError.message.c_str());
-  }
-  config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
-  //initialize
-  Firebase.begin(&config, &auth);
-  Firebase.reconnectWiFi(true);
-  // Retrieve the current high score
-  if (Firebase.RTDB.getInt(&fbdo, "highScore/buzzwire")) {
-    if (fbdo.dataType() == "int") {
-      highScore = fbdo.intData();
-      Serial.println("Current high score: " + String(highScore) + " ms");
-    }
-  } else {
-    Serial.print("Failed to get high score: ");
-    Serial.println(fbdo.errorReason());
-  }
-   if (Firebase.RTDB.getInt(&fbdo, "highScore/memory")) {
-    if (fbdo.dataType() == "int") {
-      memoryHighScore = fbdo.intData();
-      Serial.println("Current high score: " + String(memoryHighScore));
-    }
-  } else {
-    Serial.print("Failed to get high score: ");
-    Serial.println(fbdo.errorReason());
-  }
 }
 
 void firestoreDataUpdate() {
@@ -713,33 +641,6 @@ void firestoreDataUpdate() {
   }
 }
 
-void updateBuzzwireHighScore(unsigned long newHighScore) {
-  Firebase.RTDB.setInt(&fbdo, "highScore/buzzwire", newHighScore);
-  if (fbdo.dataType() == "null") {
-    Serial.print("Failed to update high score: ");
-    Serial.println(fbdo.errorReason());
-  } else {
-    Serial.println("Updated high score to: " + String(newHighScore) + " ms");
-  }
-}
-
-void updateMemoryHighScore(unsigned long memoryNewHighScore) {
-  Serial.println("1");
-  Firebase.RTDB.setInt(&fbdo, "highScore/memory", memoryNewHighScore);
-  Serial.println("2");
-  if (fbdo.dataType() == "null") {
-    Serial.println("3");
-    Serial.print("Failed to update high score: ");
-    Serial.println(fbdo.errorReason());
-    Serial.println("4");
-  } else {
-    Serial.println("5");
-    Serial.println("Updated high score to: " + String(memoryNewHighScore) + " ms");
-    Serial.println("6");
-  }
-}
-
-
 //Get Date
 String getFormattedDate() {
   time_t now;
@@ -752,8 +653,6 @@ String getFormattedDate() {
   strftime(buffer, sizeof(buffer), "%Y-%m-%d", &timeinfo);
   return String(buffer);
 }
-
-
 
 //Timer
 void timer(){
@@ -776,7 +675,6 @@ void timer(){
     lastDisplayUpdateTime = millis();
   }
 }
-
 
 void dancingPad(){
   gameRemainingTime = millis() - gameStartTime;
