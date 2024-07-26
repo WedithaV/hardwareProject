@@ -12,7 +12,7 @@
 #define FIREBASE_PROJECT_ID "first-year-hardware-project"
 #define USER_EMAIL "your_email@example.com"
 #define USER_PASSWORD "your_password"
-#define DATABASE_URL "https://first-year-hardware-project.firebaseio.com" // Add your Firebase database URL
+#define DATABASE_URL "https://first-year-hardware-project.firebaseio.com"
 #define RDATABASE_URL "https://first-year-hardware-project-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
 //LD2410
@@ -72,12 +72,12 @@ bool radarConnected = false;
 unsigned long presenceStartTime = 0;
 unsigned long gameStartTime = 0;
 bool gameActive = false;
-const unsigned long presenceDuration = 30000; // 5 seconds in milliseconds
-const unsigned long gameDuration =60000; // 20 seconds in milliseconds
+const unsigned long presenceDuration = 30000; // 30 seconds in milliseconds
+const unsigned long gameDuration = 60000; // 60 seconds in milliseconds
 unsigned long lastHumanDetectionTime = 0;
-const unsigned long detectionGracePeriod = 2000; // 4 seconds in milliseconds
+const unsigned long detectionGracePeriod = 2000; // 2 seconds in milliseconds
 
-int sessions = 0; //count of sesions (Websockets)
+int sessions = 0; // count of sesions (Websockets)
 int numDetections = 0; // Counter for human presence detections
 int numExecutedSessions = 0;
 unsigned long memoryHighScore = ULONG_MAX;
@@ -125,7 +125,7 @@ void setup() {
   lcd.init();
   lcd.backlight();
 
-  //WiFi
+  // WiFi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -146,18 +146,18 @@ void setup() {
   Serial.print("ESP32 IP Address: ");
   Serial.println(WiFi.localIP());  // Print the IP address
 
-  //Debug Red led in memory game
+  // Debug Red led in memory game
   pinMode(25, OUTPUT);
 
-  //Websockets
+  // Websockets
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
 
-  //FireBase
+  // FireBase
   firebaseInit();
   rfirebase();
 
-  //Time
+  // Time
   configTime(0, 0, "pool.ntp.org", "time.nist.gov"); // Configure time service
   randomSeed(analogRead(0));  // Seed the random number generator
 
