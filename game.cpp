@@ -483,7 +483,7 @@ void game2() {
         lcd.print(" for Start Game ");
         button[0] = digitalRead(buttons[0]);
         while (button[0] == HIGH) {
-          button[0] = digitalRead(buttons[0]);
+          button[0] = digitalRead(buttons[0]); // waiting for press button
         }
         playBuzzer(25);
         level = 1;
@@ -500,7 +500,7 @@ void game2() {
         lcd.setCursor(0, 1);
         lcd.print("--- Memorize ---");
         delay(1500);
-        led_memoryGame[level] = leds[random(0, 4)];
+        led_memoryGame[level] = leds[random(0, 4)]; // generate a random number and add it to array
         for (int i = 1; i <= level; i++) {
           digitalWrite(led_memoryGame[i], HIGH);
           playBuzzer(led_memoryGame[i] - 15);
@@ -534,7 +534,7 @@ void game2() {
             delay(50);
             digitalWrite(leds[i], LOW);
             game_play++;
-            if (game_play - 1 == level) {
+            if (game_play - 1 == level) { // waiting to press all buttons in level
               game_play = 1;
               stage = 4;
               break;
@@ -553,7 +553,7 @@ void game2() {
         lcd.print("  Verification  ");
         delay(1000);
         for (int i = 1; i <= level; i++) {
-          if (led_memoryGame[i] != bt_memoryGame[i]) {
+          if (led_memoryGame[i] != bt_memoryGame[i]) { // compare led and button pins
             lost = true;
             break;
           }
