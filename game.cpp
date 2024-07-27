@@ -48,10 +48,7 @@ const int failpin = 4;
 const int endpin = 33;
 enum GameState { FAILED, IN_PROGRESS, SUCCESS };
 GameState gamestate = FAILED;
-unsigned long startTime = 0; // Variable to store the start time
-unsigned long highScore = ULONG_MAX; // Variable to store the high score time
 
-// Choose Game
 enum GameMode { Buz, Memory,dance, non };
 GameMode gamemode = non;
 
@@ -73,14 +70,13 @@ unsigned long presenceStartTime = 0;
 unsigned long gameStartTime = 0;
 bool gameActive = false;
 const unsigned long presenceDuration = 1*60*1000; 
-const unsigned long gameDuration =3*60*1000; 
+const unsigned long gameDuration = 3*60*1000; 
 unsigned long lastHumanDetectionTime = 0;
 const unsigned long detectionGracePeriod = 2000; 
 
 int sessions = 0; //count of sesions (Websockets)
 int numDetections = 0; // Counter for human presence detections
 int numExecutedSessions = 0;
-int memoryHighScore;
 int i = 1;
 
 bool changeState = false;
@@ -382,8 +378,6 @@ void game1() {
       case IN_PROGRESS:
         if (!digitalRead(endpin)) {
           gamestate = SUCCESS;
-          unsigned long endTime = millis();
-          unsigned long elapsedTime = endTime - startTime;
           lcd.clear();
           lcd.setCursor(0, 1);
           playBuzzer(4);
@@ -428,7 +422,6 @@ void game1() {
       case SUCCESS:
         if (!digitalRead(startpin)) {
           gamestate = IN_PROGRESS;
-          startTime = millis(); // Record the start time
           lcd.clear();
           lcd.setCursor(0, 1);
           tone(buzzer, 150);
